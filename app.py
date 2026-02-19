@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # ---------------- LOAD API KEY SECURELY ----------------
-API_KEY = st.secrets["API_KEY"]
+API_KEY = st.secrets["281bc8416a8bc23560a6e55a98b0f779"]
 
 # ---------------- CUSTOM CSS ----------------
 st.markdown("""
