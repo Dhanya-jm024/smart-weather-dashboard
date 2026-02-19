@@ -37,7 +37,8 @@ st.markdown('<div class="subtitle">Real-time weather with smart suggestions</div
 city = st.text_input("Enter City Name", placeholder="Example: Bangalore")
 
 # 🔑 Your API key
-API_KEY = "281bc8416a8bc23560a6e55a98b0f779"
+API_KEY = st.secrets["281bc8416a8bc23560a6e55a98b0f779"]
+
 
 
 # ---------------- WEATHER ICON FUNCTION ----------------
