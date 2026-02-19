@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import pandas as pd
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -7,6 +8,10 @@ st.set_page_config(
     page_icon="🌦️",
     layout="centered"
 )
+
+# ---------------- LOAD API KEY SECURELY ----------------
+API_KEY = st.secrets["281bc8416a8bc23560a6e55a98b0f779"]
+
 
 # ---------------- CUSTOM CSS ----------------
 st.markdown("""
@@ -16,7 +21,7 @@ st.markdown("""
 }
 .title {
     text-align: center;
-    font-size: 42px;
+    font-size: 45px;
     font-weight: bold;
     color: white;
 }
@@ -30,18 +35,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------- TITLE ----------------
-st.markdown('<div class="title">🌦️ Smart Weather Dashboard</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Real-time weather with smart suggestions</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">🌦️ Smart Weather Dashboard Pro</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Real-time weather, forecast, charts & smart suggestions</div>', unsafe_allow_html=True)
 
-# ---------------- INPUT ----------------
-city = st.text_input("Enter City Name", placeholder="Example: Bangalore")
-
-# 🔑 Your API key
-API_KEY = st.secrets["281bc8416a8bc23560a6e55a98b0f779"]
-
-
-
-# ---------------- WEATHER ICON FUNCTION ----------------
+# ---------------- WEATHER ICON ----------------
 def get_weather_icon(condition):
 
     icons = {
@@ -51,112 +48,112 @@ def get_weather_icon(condition):
         "Snow": "❄️",
         "Thunderstorm": "⛈️",
         "Drizzle": "🌦️",
-        "Mist": "🌫️",
-        "Smoke": "🌫️",
-        "Haze": "🌫️",
-        "Fog": "🌫️"
+        "Mist": "🌫️"
     }
 
     return icons.get(condition, "🌍")
 
-
-# ---------------- SMART SUGGESTION FUNCTION ----------------
+# ---------------- SUGGESTIONS ----------------
 def get_suggestion(temp, condition):
 
     if condition == "Rain":
         return "☔ Carry an umbrella"
 
     elif temp > 35:
-        return "🥵 Stay hydrated and avoid sun"
+        return "🥵 Stay hydrated"
 
     elif temp < 15:
         return "🧥 Wear warm clothes"
 
     elif condition == "Clear":
-        return "😎 Great day for outdoor activities"
-
-    elif condition == "Clouds":
-        return "☁️ Pleasant weather outside"
+        return "😎 Great day outside"
 
     else:
         return "✅ Have a great day!"
 
+# ---------------- INPUT ----------------
+city = st.text_input("Enter City Name", placeholder="Example: Bangalore")
 
-# ---------------- BUTTON ACTION ----------------
+# ---------------- CURRENT WEATHER ----------------
 if st.button("Get Weather"):
 
     if city.strip() == "":
-        st.warning("⚠️ Please enter a city name")
+        st.warning("Enter a city name")
 
     else:
 
         try:
 
-            url = f"https://api.openweathermap.org/data/2.5/weather?q={city.strip()}&appid={API_KEY}&units=metric"
+            current_url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
 
-            with st.spinner("Fetching weather data..."):
+            forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?q={city}&appid={API_KEY}&units=metric"
 
-                # Improved request with timeout
-                response = requests.get(url, timeout=10)
+            current_response = requests.get(current_url, timeout=10)
+            forecast_response = requests.get(forecast_url, timeout=10)
 
-                data = response.json()
+            current_data = current_response.json()
+            forecast_data = forecast_response.json()
 
-            # Check both status code and API response
-            if response.status_code == 200 and data.get("cod") == 200:
+            if current_data.get("cod") != 200:
 
-                city_name = data["name"]
-                country = data["sys"]["country"]
-                temp = data["main"]["temp"]
-                humidity = data["main"]["humidity"]
-                wind = data["wind"]["speed"]
-                condition = data["weather"][0]["main"]
-                description = data["weather"][0]["description"]
+                st.error(current_data.get("message"))
+
+            else:
+
+                # CURRENT WEATHER
+                city_name = current_data["name"]
+                country = current_data["sys"]["country"]
+                temp = current_data["main"]["temp"]
+                humidity = current_data["main"]["humidity"]
+                wind = current_data["wind"]["speed"]
+                condition = current_data["weather"][0]["main"]
+                description = current_data["weather"][0]["description"]
 
                 icon = get_weather_icon(condition)
                 suggestion = get_suggestion(temp, condition)
 
-                st.success("✅ Weather data fetched successfully")
-
-                # Display location
                 st.subheader(f"{icon} {city_name}, {country}")
-                st.write(f"**Condition:** {description.title()}")
+                st.write(description.title())
 
-                # Metrics layout
                 col1, col2, col3 = st.columns(3)
 
-                col1.metric("🌡️ Temperature", f"{temp} °C")
-                col2.metric("💧 Humidity", f"{humidity}%")
-                col3.metric("🌬️ Wind Speed", f"{wind} m/s")
+                col1.metric("Temperature", f"{temp} °C")
+                col2.metric("Humidity", f"{humidity}%")
+                col3.metric("Wind Speed", f"{wind} m/s")
 
-                # Suggestion
-                st.info(f"💡 Suggestion: {suggestion}")
+                st.success(suggestion)
 
-                # Extra details
-                with st.expander("📊 More Details"):
+                # ---------------- FORECAST CHART ----------------
 
-                    feels_like = data["main"]["feels_like"]
-                    pressure = data["main"]["pressure"]
+                st.subheader("5-Day Temperature Forecast")
 
-                    st.write(f"Feels Like: {feels_like} °C")
-                    st.write(f"Pressure: {pressure} hPa")
+                temps = []
+                dates = []
 
-            else:
+                for item in forecast_data["list"]:
 
-                st.error(f"❌ API Error: {data.get('message', 'Unknown error')}")
+                    temps.append(item["main"]["temp"])
+                    dates.append(item["dt_txt"])
 
-        except requests.exceptions.ConnectionError:
+                df = pd.DataFrame({
+                    "Date": dates,
+                    "Temperature": temps
+                })
 
-            st.error("❌ No internet connection")
+                df["Date"] = pd.to_datetime(df["Date"])
 
-        except requests.exceptions.Timeout:
+                st.line_chart(df.set_index("Date"))
 
-            st.error("❌ Request timed out. Try again.")
+                # ---------------- FORECAST TABLE ----------------
+
+                st.subheader("Forecast Data")
+
+                st.dataframe(df.head(10))
 
         except Exception as e:
 
-            st.error(f"❌ Unexpected error: {str(e)}")
-
+            st.error(f"Error: {e}")
 
 # ---------------- FOOTER ----------------
 st.markdown("---")
-st.markdown("Built with ❤️ using Streamlit and OpenWeather API")
+st.markdown("Built with ❤️ using Streamlit, Python, and OpenWeather API")
